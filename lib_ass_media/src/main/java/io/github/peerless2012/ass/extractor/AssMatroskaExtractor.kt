@@ -87,15 +87,28 @@ class AssMatroskaExtractor(
         val tracks = tracks.get(this) as SparseArray<Track>
         val track = tracks.get(blockTrackNumber.get(this) as Int)
         if (track.codecId == CODEC_ID_ASS) {
-            (0 until blockSampleCount.get(this) as Int).forEach { i ->
+            for (i in 0 until blockSampleCount.get(this) as Int) {
                 val start = (blockTimeUs.get(this) as Long) + (i * track.defaultSampleDurationNs) / 1000
                 val end = start + blockDurationUs.get(this) as Long
-                val data = subtitleSample.get(this) as ParsableByteArray
-                val text = data.data.decodeToString(endIndex = data.limit())
-                // TODO replace $text with $start and $end timestamps and feed to libass
-                println("+++ subtitle $start $end $text")
+                val event = (subtitleSample.get(this) as ParsableByteArray).run {
+                    data.decodeToString(position + SSA_PREFIX, limit())
+                }
+                val dialogue = "Dialogue: %s,%s,%s".format(start.toAssTime(), end.toAssTime(), event)
+
+                synchronized("") {
+                    assKeeper.track.readBuffer(dialogue.encodeToByteArray())
+                }
             }
         }
+    }
+
+    private fun Long.toAssTime(): String {
+        val total = this / 10_000
+        val hours = total / (60 * 60 * 100)
+        val minutes = (total / (60 * 100)) % 60
+        val seconds = (total / 100) % 60
+        val centiseconds = total % 100
+        return "%d:%02d:%02d.%02d".format(hours, minutes, seconds, centiseconds)
     }
 
     companion object {
@@ -139,5 +152,8 @@ class AssMatroskaExtractor(
         val blockSampleCount = MatroskaExtractor::class.java.getDeclaredField("blockSampleCount").apply {
             isAccessible = true
         }
+        val SSA_PREFIX = MatroskaExtractor::class.java.getDeclaredField("SSA_PREFIX").apply {
+            isAccessible = true
+        }.get(null).let { (it as ByteArray).size }
     }
 }
