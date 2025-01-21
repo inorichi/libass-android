@@ -133,7 +133,6 @@ void nativeAssTrackDeinit(JNIEnv* env, jclass clazz, jlong track) {
     ass_free_track((ASS_Track *) track);
 }
 
-
 static JNINativeMethod trackMethodTable[] = {
         {"nativeAssTrackInit", "(J)J", (void*)nativeAssTrackInit},
         {"nativeAssTrackGetWidth", "(J)I", (void*) nativeAssTrackGetWidth},
@@ -244,6 +243,17 @@ jobject nativeAssRenderReadFrame(JNIEnv* env, jclass clazz, jlong render, jlong 
     return assTexArr;
 }
 
+void nativeAssRenderFrame(JNIEnv* env, jclass clazz, jlong render, jlong track, jint texture_id, jlong time) {
+    ASS_Renderer *r = (ASS_Renderer*) render;
+    ASS_Track *t = (ASS_Track*) track;
+    int64_t ts = time / 1000;
+    int change;
+    ASS_Image *image = ass_render_frame(r, t, ts, &change);
+    if (image) {
+        LOGE("++++ color %d changed %d count %d ts %lld", image->color, change, count_ass_images(image), ts);
+    }
+}
+
 void nativeAssRenderDeinit(JNIEnv* env, jclass clazz, jlong render) {
     if (render) {
         ass_renderer_done((ASS_Renderer *) render);
@@ -256,6 +266,7 @@ static JNINativeMethod renderMethodTable[] = {
         {"nativeAssRenderSetStorageSize", "(JII)V", (void*) nativeAssRenderSetStorageSize},
         {"nativeAssRenderSetFrameSize", "(JII)V", (void*)nativeAssRenderSetFrameSize},
         {"nativeAssRenderReadFrames", "(JJJ)[Lio/github/peerless2012/ass/kt/ASSTex;", (void*)nativeAssRenderReadFrame},
+        {"nativeAssRenderFrame", "(JJIJ)V", (void*) nativeAssRenderFrame},
         {"nativeAssRenderDeinit", "(J)V", (void*)nativeAssRenderDeinit},
 };
 JNIEXPORT jint JNICALL JNI_OnLoad(JavaVM *vm, void *reserved) {

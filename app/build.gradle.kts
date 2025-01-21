@@ -56,6 +56,7 @@ dependencies {
     implementation(libs.androidx.media3.exo)
     implementation(libs.androidx.media3.okhttp)
     implementation(libs.androidx.media3.ui)
+    implementation(libs.androidx.media3.effect)
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)

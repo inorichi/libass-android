@@ -5,11 +5,16 @@ import android.widget.Button
 import androidx.activity.enableEdgeToEdge
 import androidx.annotation.OptIn
 import androidx.appcompat.app.AppCompatActivity
-import androidx.core.view.ViewCompat
+import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
+import androidx.media3.common.Effect
 import androidx.media3.common.MediaItem
+import androidx.media3.common.MimeTypes
+import androidx.media3.common.Player
+import androidx.media3.common.Tracks
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.datasource.okhttp.OkHttpDataSource
+import androidx.media3.effect.OverlayEffect
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.extractor.DefaultExtractorsFactory
@@ -17,8 +22,8 @@ import androidx.media3.ui.PlayerView
 import androidx.media3.ui.TrackSelectionDialogBuilder
 import io.github.peerless2012.ass.AssKeeper
 import io.github.peerless2012.ass.extractor.withAssMkvSupport
-import io.github.peerless2012.ass.factory.AssRenderFactory
 import io.github.peerless2012.ass.factory.AssSubtitleParserFactory
+import io.github.peerless2012.ass.render.AssOverlay
 import okhttp3.OkHttpClient
 
 
@@ -36,11 +41,6 @@ class MainActivity : AppCompatActivity() {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
-        ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main)) { v, insets ->
-            val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
-            v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom)
-            insets
-        }
         findViewById<Button>(R.id.main_track).setOnClickListener {
             selectTrack()
         }
@@ -58,12 +58,39 @@ class MainActivity : AppCompatActivity() {
 
         player = ExoPlayer.Builder(this)
             .setMediaSourceFactory(mediaFactory)
-            .setRenderersFactory(AssRenderFactory(baseContext))
             .build()
         player.addListener(assKeeper)
         playerView.player = player
         player.setMediaItem(MediaItem.fromUri(url))
+
+        // TODO move to media library, probably using extension function on ExoPlayer.Builder
+        player.setVideoEffects(listOf())
+        player.addListener(object : Player.Listener {
+            override fun onTracksChanged(tracks: Tracks) {
+                super.onTracksChanged(tracks)
+                // Check if there are any active SSA subtitle tracks
+                val hasAss = tracks.groups.any { group ->
+                    if (!group.isSelected) return@any false
+                    (0 until group.length).any { index ->
+                        val track = group.getTrackFormat(index)
+                        track.sampleMimeType == MimeTypes.TEXT_SSA || track.codecs == MimeTypes.TEXT_SSA
+                    }
+                }
+                if (hasAss) {
+                    player.setVideoEffects(
+                        listOf<Effect>(OverlayEffect(listOf(AssOverlay(assKeeper))))
+                    )
+                } else {
+                    player.setVideoEffects(listOf())
+                }
+            }
+        })
+
         player.prepare()
+
+        val windowInsetsController =
+            WindowCompat.getInsetsController(window, window.decorView)
+        windowInsetsController.hide(WindowInsetsCompat.Type.systemBars())
     }
 
     @OptIn(UnstableApi::class)

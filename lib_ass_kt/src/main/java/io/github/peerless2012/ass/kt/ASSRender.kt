@@ -30,6 +30,9 @@ class ASSRender(nativeAss: Long) {
         external fun nativeAssRenderReadFrames(render: Long, track: Long, time: Long): Array<ASSTex>?
 
         @JvmStatic
+        external fun nativeAssRenderFrame(render: Long, track: Long, textureId: Int, time: Long)
+
+        @JvmStatic
         external fun nativeAssRenderDeinit(render: Long)
     }
 
@@ -55,6 +58,10 @@ class ASSRender(nativeAss: Long) {
 
     public fun readFrames(time: Long): Array<ASSTex>? {
         return nativeAssRenderReadFrames(nativeRender, track!!.nativeAssTrack, time)
+    }
+
+    public fun renderFrame(textureId: Int, time: Long) {
+        nativeAssRenderFrame(nativeRender, track!!.nativeAssTrack, textureId, time)
     }
 
     protected fun finalize() {

@@ -1,6 +1,8 @@
 package io.github.peerless2012.ass.extractor
 
+import android.util.SparseArray
 import androidx.annotation.OptIn
+import androidx.media3.common.util.ParsableByteArray
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.extractor.ExtractorInput
 import androidx.media3.extractor.mkv.EbmlProcessor
@@ -42,6 +44,10 @@ class AssMatroskaExtractor(
     override fun endMasterElement(id: Int) {
         when (id) {
             ID_ATTACHED_FILE -> clearAttachment()
+            ID_BLOCK_GROUP -> {
+                readBlockGroup()
+                super.endMasterElement(id)
+            }
             else -> super.endMasterElement(id)
         }
     }
@@ -76,12 +82,31 @@ class AssMatroskaExtractor(
         currentAttachmentMime = null
     }
 
+    @Suppress("UNCHECKED_CAST")
+    private fun readBlockGroup() {
+        val tracks = tracks.get(this) as SparseArray<Track>
+        val track = tracks.get(blockTrackNumber.get(this) as Int)
+        if (track.codecId == CODEC_ID_ASS) {
+            (0 until blockSampleCount.get(this) as Int).forEach { i ->
+                val start = (blockTimeUs.get(this) as Long) + (i * track.defaultSampleDurationNs) / 1000
+                val end = start + blockDurationUs.get(this) as Long
+                val data = subtitleSample.get(this) as ParsableByteArray
+                val text = data.data.decodeToString(endIndex = data.limit())
+                // TODO replace $text with $start and $end timestamps and feed to libass
+                println("+++ subtitle $start $end $text")
+            }
+        }
+    }
+
     companion object {
         const val ID_ATTACHMENTS = 0x1941A469
         const val ID_ATTACHED_FILE = 0x61A7
         const val ID_FILE_NAME = 0x466E
         const val ID_FILE_MIME_TYPE = 0x4660
         const val ID_FILE_DATA = 0x465C
+        const val ID_BLOCK_GROUP = 0xA0
+
+        const val CODEC_ID_ASS: String = "S_TEXT/ASS"
 
         val fontMimeTypes = listOf(
             "font/ttf",
@@ -95,5 +120,24 @@ class AssMatroskaExtractor(
             "application/vnd.ms-opentype",
             "application/x-font-ttf",
         )
+
+        val blockTimeUs = MatroskaExtractor::class.java.getDeclaredField("blockTimeUs").apply {
+            isAccessible = true
+        }
+        val blockDurationUs = MatroskaExtractor::class.java.getDeclaredField("blockDurationUs").apply {
+            isAccessible = true
+        }
+        val subtitleSample = MatroskaExtractor::class.java.getDeclaredField("subtitleSample").apply {
+            isAccessible = true
+        }
+        val tracks = MatroskaExtractor::class.java.getDeclaredField("tracks").apply {
+            isAccessible = true
+        }
+        val blockTrackNumber = MatroskaExtractor::class.java.getDeclaredField("blockTrackNumber").apply {
+            isAccessible = true
+        }
+        val blockSampleCount = MatroskaExtractor::class.java.getDeclaredField("blockSampleCount").apply {
+            isAccessible = true
+        }
     }
 }
