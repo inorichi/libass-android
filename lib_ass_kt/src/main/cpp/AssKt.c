@@ -166,14 +166,14 @@ void nativeAssRenderSetStorageSize(JNIEnv* env, jclass clazz, jlong render, jint
 
 jobject createBitmap(JNIEnv* env, const ASS_Image* image) {
     jclass bitmapConfigClass = (*env)->FindClass(env, "android/graphics/Bitmap$Config");
-    jfieldID argb8888FieldID = (*env)->GetStaticFieldID(env, bitmapConfigClass, "ARGB_8888", "Landroid/graphics/Bitmap$Config;");
-    jobject argb8888 = (*env)->GetStaticObjectField(env, bitmapConfigClass, argb8888FieldID);
+    jfieldID alpha8FieldId = (*env)->GetStaticFieldID(env, bitmapConfigClass, "ALPHA_8", "Landroid/graphics/Bitmap$Config;");
+    jobject alpha8 = (*env)->GetStaticObjectField(env, bitmapConfigClass, alpha8FieldId);
 
     jclass bitmapClass = (*env)->FindClass(env, "android/graphics/Bitmap");
     jmethodID createBitmapMethodID = (*env)->GetStaticMethodID(env,
                                                                bitmapClass, "createBitmap", "(IILandroid/graphics/Bitmap$Config;)Landroid/graphics/Bitmap;");
     jobject bitmap = (*env)->CallStaticObjectMethod(env,
-                                                    bitmapClass, createBitmapMethodID, image->w, image->h, argb8888);
+                                                    bitmapClass, createBitmapMethodID, image->w, image->h, alpha8);
 
     void* bitmapPixels;
     AndroidBitmap_lockPixels(env, bitmap, &bitmapPixels);
@@ -184,21 +184,11 @@ jobject createBitmap(JNIEnv* env, const ASS_Image* image) {
     }
 
     int stride = image->stride;
-    unsigned int r = (image->color >> 24) & 0xFF;
-    unsigned int g = (image->color >> 16) & 0xFF;
-    unsigned int b = (image->color >> 8) & 0xFF;
-    unsigned int opacity = 0xFF - image->color & 0xFF;
+    memcpy(bitmapPixels, image->bitmap, image->h * info.stride);
     for (int y = 0; y < image->h; ++y) {
-        uint32_t *line = (uint32_t *)((char *)bitmapPixels + (y) * info.stride);
-        for (int x = 0; x < image->w; ++x) {
-            unsigned alpha = image->bitmap[y * stride + x];
-            if (alpha > 0) {
-                // ABGR
-                line[x] = ((opacity * alpha) / 255) << 24 | (b << 16) | (g << 8) | r;
-            } else {
-                line[x] = 0;
-            }
-        }
+        char *dst = (char *) bitmapPixels + y * info.stride;
+        char *src = (char *) image->bitmap + y * stride;
+        memcpy(dst, src, image->w);
     }
     AndroidBitmap_unlockPixels(env, bitmap);
 
@@ -230,10 +220,11 @@ jobject nativeAssRenderReadFrame(JNIEnv* env, jclass clazz, jlong render, jlong 
     int index = 0;
     for (ASS_Image *img = image; img != NULL; img = img->next) {
         jobject bitmap = createBitmap(env, img);
+        int32_t color = img->color;
 
-        jmethodID assTexConstructor = (*env)->GetMethodID(env, assTexClass, "<init>", "(IILandroid/graphics/Bitmap;)V");
+        jmethodID assTexConstructor = (*env)->GetMethodID(env, assTexClass, "<init>", "(IILandroid/graphics/Bitmap;I)V");
 
-        jobject assTexObject = (*env)->NewObject(env, assTexClass, assTexConstructor, img->dst_x, img->dst_y, bitmap);
+        jobject assTexObject = (*env)->NewObject(env, assTexClass, assTexConstructor, img->dst_x, img->dst_y, bitmap, color);
 
         (*env)->SetObjectArrayElement(env, assTexArr, index, assTexObject);
         index++;

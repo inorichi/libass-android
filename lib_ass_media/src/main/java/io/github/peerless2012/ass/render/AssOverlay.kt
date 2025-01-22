@@ -1,69 +1,52 @@
 package io.github.peerless2012.ass.render
 
-import android.opengl.GLES20
+import android.graphics.Canvas
+import android.graphics.Color
+import android.graphics.Paint
+import android.graphics.PorterDuff
+import android.graphics.PorterDuffXfermode
 import androidx.annotation.OptIn
-import androidx.media3.common.C
-import androidx.media3.common.util.GlUtil
+import androidx.media3.common.VideoSize
 import androidx.media3.common.util.Size
 import androidx.media3.common.util.UnstableApi
-import androidx.media3.effect.TextureOverlay
 import io.github.peerless2012.ass.AssKeeper
 import io.github.peerless2012.ass.kt.ASSRender
-import java.nio.ByteBuffer
 
 
 @OptIn(UnstableApi::class)
 class AssOverlay(
     private val assKeeper: AssKeeper
-) : TextureOverlay() {
+) : CanvasOverlay(true) {
 
-    private var textureId = C.INDEX_UNSET
-    private lateinit var size: Size
-    private lateinit var renderer: ASSRender
+    private var renderer: ASSRender? = null
 
-    override fun getTextureId(presentationTimeUs: Long): Int {
-        if (textureId == C.INDEX_UNSET) {
-            textureId = generateTexture()
-            renderer = assKeeper.render
-        }
-//        println("+++ render ${Thread.currentThread()}")
-        // TODO syncing for now to avoid crash with AssParser, we should avoid it
-        synchronized("") {
-            renderer.renderFrame(textureId, presentationTimeUs)
-        }
-        return textureId
-    }
-
-    override fun getTextureSize(presentationTimeUs: Long): Size {
-        return size
+    private val paint = Paint().apply {
+        xfermode = PorterDuffXfermode(PorterDuff.Mode.SRC_OVER)
     }
 
     override fun configure(videoSize: Size) {
         super.configure(videoSize)
-        size = videoSize
+        assKeeper.onVideoSizeChanged(VideoSize(videoSize.width, videoSize.height))
+        assKeeper.onSurfaceSizeChanged(videoSize.width, videoSize.height)
     }
 
-    private fun generateTexture(): Int {
-        val textureId = GlUtil.generateTexture()
-        GlUtil.bindTexture(GLES20.GL_TEXTURE_2D, textureId, GLES20.GL_LINEAR)
-        val emptyBuffer = ByteBuffer.allocateDirect(size.width * size.height * 4) // RGBA format
-
-        (0 until 1920*20).forEach {
-            emptyBuffer.asLongBuffer().put(it, 0xFFFFFFFF)
+    override fun onDraw(canvas: Canvas, presentationTimeUs: Long) {
+        canvas.drawColor(Color.TRANSPARENT, PorterDuff.Mode.CLEAR)
+        val renderer = renderer ?: run {
+            assKeeper.render.also {
+                this.renderer = it
+            }
         }
+        val frames = synchronized("") { renderer.readFrames(presentationTimeUs / 1000) }
+        frames?.forEach { frame ->
+            val r = frame.color shr 24 and 0xFF
+            val g = frame.color shr 16 and 0xFF
+            val b = frame.color shr  8 and 0xFF
+            val a = 0xFF - frame.color and 0xFF
+            val color = (a shl 24) or (r shl 16) or (g shl 8) or b
 
-        GLES20.glTexImage2D(
-            GLES20.GL_TEXTURE_2D, 0, GLES20.GL_RGBA, size.width, size.height, 0,
-            GLES20.GL_RGBA, GLES20.GL_UNSIGNED_BYTE, emptyBuffer
-        )
-        return textureId
-    }
-
-    override fun release() {
-        super.release()
-        if (textureId != C.INDEX_UNSET) {
-            GlUtil.deleteTexture(textureId)
-            textureId = C.INDEX_UNSET
+            paint.color = color
+            canvas.drawBitmap(frame.alpha, frame.x.toFloat(), frame.y.toFloat(), paint)
         }
     }
 }

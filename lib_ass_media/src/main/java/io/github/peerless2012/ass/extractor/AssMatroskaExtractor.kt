@@ -94,9 +94,8 @@ class AssMatroskaExtractor(
                     data.decodeToString(position + SSA_PREFIX, limit())
                 }
                 val dialogue = "Dialogue: %s,%s,%s".format(start.toAssTime(), end.toAssTime(), event)
-
                 synchronized("") {
-                    assKeeper.track.readBuffer(dialogue.encodeToByteArray())
+                    assKeeper.track.readBuffer(dialogue)
                 }
             }
         }
