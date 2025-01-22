@@ -204,10 +204,19 @@ static int count_ass_images(ASS_Image *images) {
 }
 
 jobject nativeAssRenderReadFrame(JNIEnv* env, jclass clazz, jlong render, jlong track, jlong time) {
-    ASS_Image *image = ass_render_frame((ASS_Renderer *) render, (ASS_Track *) track, time, NULL);
+    int changed;
+    ASS_Image *image = ass_render_frame((ASS_Renderer *) render, (ASS_Track *) track, time, &changed);
     if (image == NULL) {
         return NULL;
     }
+    jclass assResultClass = (*env)->FindClass(env, "io/github/peerless2012/ass/kt/ASSRenderResult");
+    jmethodID assResultConstructor = (*env)->GetMethodID(env, assResultClass, "<init>", "([Lio/github/peerless2012/ass/kt/ASSTex;I)V");
+
+    if (changed == 0) {
+        jobject res = (*env)->NewObject(env, assResultClass, assResultConstructor, NULL, changed);
+        return res;
+    }
+
     int size = count_ass_images(image);
     jclass assTexClass = (*env)->FindClass(env, "io/github/peerless2012/ass/kt/ASSTex");
 
@@ -230,8 +239,8 @@ jobject nativeAssRenderReadFrame(JNIEnv* env, jclass clazz, jlong render, jlong 
         index++;
     }
 
-
-    return assTexArr;
+    jobject res = (*env)->NewObject(env, assResultClass, assResultConstructor, assTexArr, changed);
+    return res;
 }
 
 void nativeAssRenderFrame(JNIEnv* env, jclass clazz, jlong render, jlong track, jint texture_id, jlong time) {
@@ -256,7 +265,7 @@ static JNINativeMethod renderMethodTable[] = {
         {"nativeAssRenderSetFontScale", "(JF)V", (void*)nativeAssRenderSetFontScale},
         {"nativeAssRenderSetStorageSize", "(JII)V", (void*) nativeAssRenderSetStorageSize},
         {"nativeAssRenderSetFrameSize", "(JII)V", (void*)nativeAssRenderSetFrameSize},
-        {"nativeAssRenderReadFrames", "(JJJ)[Lio/github/peerless2012/ass/kt/ASSTex;", (void*)nativeAssRenderReadFrame},
+        {"nativeAssRenderReadFrames", "(JJJ)Lio/github/peerless2012/ass/kt/ASSRenderResult;", (void*)nativeAssRenderReadFrame},
         {"nativeAssRenderFrame", "(JJIJ)V", (void*) nativeAssRenderFrame},
         {"nativeAssRenderDeinit", "(J)V", (void*)nativeAssRenderDeinit},
 };

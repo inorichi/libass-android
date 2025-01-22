@@ -31,14 +31,16 @@ class AssOverlay(
     }
 
     override fun onDraw(canvas: Canvas, presentationTimeUs: Long) {
-        canvas.drawColor(Color.TRANSPARENT, PorterDuff.Mode.CLEAR)
         val renderer = renderer ?: run {
             assKeeper.render.also {
                 this.renderer = it
             }
         }
-        val frames = synchronized("") { renderer.readFrames(presentationTimeUs / 1000) }
-        frames?.forEach { frame ->
+        val result = synchronized("") { renderer.readFrames(presentationTimeUs / 1000) }
+        if (result?.changed != 0) {
+            canvas.drawColor(Color.TRANSPARENT, PorterDuff.Mode.CLEAR)
+        }
+        result?.images?.forEach { frame ->
             val r = frame.color shr 24 and 0xFF
             val g = frame.color shr 16 and 0xFF
             val b = frame.color shr  8 and 0xFF
