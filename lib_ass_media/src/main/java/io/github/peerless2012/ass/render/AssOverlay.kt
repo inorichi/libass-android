@@ -28,22 +28,19 @@ class AssOverlay(
         super.configure(videoSize)
         assKeeper.onVideoSizeChanged(VideoSize(videoSize.width, videoSize.height))
         assKeeper.onSurfaceSizeChanged(videoSize.width, videoSize.height)
+        renderer = assKeeper.render
     }
 
     override fun onDraw(canvas: Canvas, presentationTimeUs: Long) {
-        val renderer = renderer ?: run {
-            assKeeper.render.also {
-                this.renderer = it
-            }
-        }
-        val result = synchronized("") { renderer.readFrames(presentationTimeUs / 1000) }
+        val renderer = requireNotNull(renderer)
+        val result = renderer.readFrames(presentationTimeUs / 1000)
         if (result?.changed != 0) {
             canvas.drawColor(Color.TRANSPARENT, PorterDuff.Mode.CLEAR)
         }
         result?.images?.forEach { frame ->
             val r = frame.color shr 24 and 0xFF
             val g = frame.color shr 16 and 0xFF
-            val b = frame.color shr  8 and 0xFF
+            val b = frame.color shr 8 and 0xFF
             val a = 0xFF - frame.color and 0xFF
             val color = (a shl 24) or (r shl 16) or (g shl 8) or b
 
