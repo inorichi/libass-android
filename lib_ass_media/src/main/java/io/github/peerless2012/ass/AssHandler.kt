@@ -28,10 +28,10 @@ class AssHandler(val useEffectsRenderer: Boolean) : Listener {
     val render by lazy {
         ass.createRender().also { render ->
             if (videoSize.isValid) {
-                render.setFrameSize(videoSize.width, videoSize.height)
+                render.setStorageSize(videoSize.width, videoSize.height)
             }
             if (surfaceSize.isValid) {
-                render.setStorageSize(surfaceSize.width, surfaceSize.height)
+                render.setFrameSize(surfaceSize.width, surfaceSize.height)
             }
         }
     }
@@ -77,7 +77,7 @@ class AssHandler(val useEffectsRenderer: Boolean) : Listener {
     override fun onVideoSizeChanged(videoSize: VideoSize) {
         super.onVideoSizeChanged(videoSize)
         Log.i("AssKeeper", "onVideoSizeChanged: width = ${videoSize.width}, height = ${videoSize.height}")
-        if (videoSize.width == videoSize.width && videoSize.height == videoSize.height) return
+        if (this.videoSize.width == videoSize.width && this.videoSize.height == videoSize.height) return
         this.videoSize = Size(videoSize.width, videoSize.height)
         videoSizeCallback?.invoke(this.videoSize)
     }
