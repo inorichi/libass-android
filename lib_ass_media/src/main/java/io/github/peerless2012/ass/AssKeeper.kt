@@ -16,7 +16,7 @@ import io.github.peerless2012.ass.kt.Ass
  * @Description
  */
 @UnstableApi
-class AssKeeper : Listener {
+class AssKeeper(val useEffectsRenderer: Boolean) : Listener {
 
     val ass = Ass()
 

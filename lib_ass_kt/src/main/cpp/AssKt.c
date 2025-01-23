@@ -166,6 +166,50 @@ void nativeAssRenderSetStorageSize(JNIEnv* env, jclass clazz, jlong render, jint
 
 jobject createBitmap(JNIEnv* env, const ASS_Image* image) {
     jclass bitmapConfigClass = (*env)->FindClass(env, "android/graphics/Bitmap$Config");
+    jfieldID argb8888FieldID = (*env)->GetStaticFieldID(env, bitmapConfigClass, "ARGB_8888", "Landroid/graphics/Bitmap$Config;");
+    jobject argb8888 = (*env)->GetStaticObjectField(env, bitmapConfigClass, argb8888FieldID);
+
+    jclass bitmapClass = (*env)->FindClass(env, "android/graphics/Bitmap");
+    jmethodID createBitmapMethodID = (*env)->GetStaticMethodID(env,
+                                                               bitmapClass, "createBitmap", "(IILandroid/graphics/Bitmap$Config;)Landroid/graphics/Bitmap;");
+    jobject bitmap = (*env)->CallStaticObjectMethod(env,
+                                                    bitmapClass, createBitmapMethodID, image->w, image->h, argb8888);
+
+    void* bitmapPixels;
+    AndroidBitmap_lockPixels(env, bitmap, &bitmapPixels);
+    AndroidBitmapInfo info;
+    if (AndroidBitmap_getInfo(env, bitmap, &info) < 0) {
+        AndroidBitmap_unlockPixels(env, bitmap);
+        return NULL;
+    }
+
+    int stride = image->stride;
+    unsigned int r = (image->color >> 24) & 0xFF;
+    unsigned int g = (image->color >> 16) & 0xFF;
+    unsigned int b = (image->color >> 8) & 0xFF;
+    unsigned int opacity = 0xFF - image->color & 0xFF;
+    for (int y = 0; y < image->h; ++y) {
+        uint32_t *line = (uint32_t *)((char *)bitmapPixels + (y) * info.stride);
+        for (int x = 0; x < image->w; ++x) {
+            unsigned alpha = image->bitmap[y * stride + x];
+            if (alpha > 0) {
+                unsigned int a = (opacity * alpha) / 255;
+                // premultiplied alpha
+                float pm = a / 255.0f;
+                // ABGR
+                line[x] = a << 24 | ((unsigned int) (b * pm) << 16) | ((unsigned int) (g * pm) << 8) | (unsigned int) (r * pm);
+            } else {
+                line[x] = 0;
+            }
+        }
+    }
+    AndroidBitmap_unlockPixels(env, bitmap);
+
+    return bitmap;
+}
+
+jobject createAlphaBitmap(JNIEnv* env, const ASS_Image* image) {
+    jclass bitmapConfigClass = (*env)->FindClass(env, "android/graphics/Bitmap$Config");
     jfieldID alpha8FieldId = (*env)->GetStaticFieldID(env, bitmapConfigClass, "ALPHA_8", "Landroid/graphics/Bitmap$Config;");
     jobject alpha8 = (*env)->GetStaticObjectField(env, bitmapConfigClass, alpha8FieldId);
 
@@ -204,19 +248,10 @@ static int count_ass_images(ASS_Image *images) {
 }
 
 jobject nativeAssRenderReadFrame(JNIEnv* env, jclass clazz, jlong render, jlong track, jlong time) {
-    int changed;
-    ASS_Image *image = ass_render_frame((ASS_Renderer *) render, (ASS_Track *) track, time, &changed);
+    ASS_Image *image = ass_render_frame((ASS_Renderer *) render, (ASS_Track *) track, time, NULL);
     if (image == NULL) {
         return NULL;
     }
-    jclass assResultClass = (*env)->FindClass(env, "io/github/peerless2012/ass/kt/ASSRenderResult");
-    jmethodID assResultConstructor = (*env)->GetMethodID(env, assResultClass, "<init>", "([Lio/github/peerless2012/ass/kt/ASSTex;I)V");
-
-    if (changed == 0) {
-        jobject res = (*env)->NewObject(env, assResultClass, assResultConstructor, NULL, changed);
-        return res;
-    }
-
     int size = count_ass_images(image);
     jclass assTexClass = (*env)->FindClass(env, "io/github/peerless2012/ass/kt/ASSTex");
 
@@ -229,7 +264,46 @@ jobject nativeAssRenderReadFrame(JNIEnv* env, jclass clazz, jlong render, jlong 
     int index = 0;
     for (ASS_Image *img = image; img != NULL; img = img->next) {
         jobject bitmap = createBitmap(env, img);
-        int32_t color = img->color;
+
+        jmethodID assTexConstructor = (*env)->GetMethodID(env, assTexClass, "<init>", "(IILandroid/graphics/Bitmap;)V");
+
+        jobject assTexObject = (*env)->NewObject(env, assTexClass, assTexConstructor, img->dst_x, img->dst_y, bitmap);
+
+        (*env)->SetObjectArrayElement(env, assTexArr, index, assTexObject);
+        index++;
+    }
+
+
+    return assTexArr;
+}
+
+jobject nativeAssRenderFrame(JNIEnv* env, jclass clazz, jlong render, jlong track, jlong time) {
+    int changed;
+    ASS_Image *image = ass_render_frame((ASS_Renderer *) render, (ASS_Track *) track, time, &changed);
+    if (image == NULL) {
+        return NULL;
+    }
+    jclass assResultClass = (*env)->FindClass(env, "io/github/peerless2012/ass/kt/ASSRenderResult");
+    jmethodID assResultConstructor = (*env)->GetMethodID(env, assResultClass, "<init>", "([Lio/github/peerless2012/ass/kt/ASSTexAlpha;I)V");
+
+    if (changed == 0) {
+        jobject res = (*env)->NewObject(env, assResultClass, assResultConstructor, NULL, changed);
+        return res;
+    }
+
+    int size = count_ass_images(image);
+    jclass assTexClass = (*env)->FindClass(env, "io/github/peerless2012/ass/kt/ASSTexAlpha");
+
+    jobjectArray assTexArr = (*env)->NewObjectArray(env, size, assTexClass, NULL);
+    if (assTexArr == NULL) {
+        return NULL;
+    }
+
+
+    int index = 0;
+    for (ASS_Image *img = image; img != NULL; img = img->next) {
+        jobject bitmap = createAlphaBitmap(env, img);
+        int32_t color = (int32_t) img->color;
 
         jmethodID assTexConstructor = (*env)->GetMethodID(env, assTexClass, "<init>", "(IILandroid/graphics/Bitmap;I)V");
 
@@ -243,17 +317,6 @@ jobject nativeAssRenderReadFrame(JNIEnv* env, jclass clazz, jlong render, jlong 
     return res;
 }
 
-void nativeAssRenderFrame(JNIEnv* env, jclass clazz, jlong render, jlong track, jint texture_id, jlong time) {
-    ASS_Renderer *r = (ASS_Renderer*) render;
-    ASS_Track *t = (ASS_Track*) track;
-    int64_t ts = time / 1000;
-    int change;
-    ASS_Image *image = ass_render_frame(r, t, ts, &change);
-    if (image) {
-        LOGE("++++ color %d changed %d count %d ts %lld", image->color, change, count_ass_images(image), ts);
-    }
-}
-
 void nativeAssRenderDeinit(JNIEnv* env, jclass clazz, jlong render) {
     if (render) {
         ass_renderer_done((ASS_Renderer *) render);
@@ -265,8 +328,8 @@ static JNINativeMethod renderMethodTable[] = {
         {"nativeAssRenderSetFontScale", "(JF)V", (void*)nativeAssRenderSetFontScale},
         {"nativeAssRenderSetStorageSize", "(JII)V", (void*) nativeAssRenderSetStorageSize},
         {"nativeAssRenderSetFrameSize", "(JII)V", (void*)nativeAssRenderSetFrameSize},
-        {"nativeAssRenderReadFrames", "(JJJ)Lio/github/peerless2012/ass/kt/ASSRenderResult;", (void*)nativeAssRenderReadFrame},
-        {"nativeAssRenderFrame", "(JJIJ)V", (void*) nativeAssRenderFrame},
+        {"nativeAssRenderReadFrames", "(JJJ)[Lio/github/peerless2012/ass/kt/ASSTex;", (void*)nativeAssRenderReadFrame},
+        {"nativeAssRenderFrame", "(JJJ)Lio/github/peerless2012/ass/kt/ASSRenderResult;", (void*) nativeAssRenderFrame},
         {"nativeAssRenderDeinit", "(J)V", (void*)nativeAssRenderDeinit},
 };
 JNIEXPORT jint JNICALL JNI_OnLoad(JavaVM *vm, void *reserved) {

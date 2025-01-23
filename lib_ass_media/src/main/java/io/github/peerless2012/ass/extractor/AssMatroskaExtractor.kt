@@ -37,9 +37,14 @@ class AssMatroskaExtractor(
     override fun startMasterElement(id: Int, contentPosition: Long, contentSize: Long) {
         when (id) {
             ID_EBML -> {
-                val currentExtractor = extractorOutput.get(this) as ExtractorOutput
-                if (currentExtractor !is AssSubtitleExtractorOutput) {
-                    extractorOutput.set(this, AssSubtitleExtractorOutput(currentExtractor, assKeeper))
+                if (assKeeper.useEffectsRenderer) {
+                    val currentExtractor = extractorOutput.get(this) as ExtractorOutput
+                    if (currentExtractor !is AssSubtitleExtractorOutput) {
+                        extractorOutput.set(
+                            this,
+                            AssSubtitleExtractorOutput(currentExtractor, assKeeper)
+                        )
+                    }
                 }
                 super.startMasterElement(id, contentPosition, contentSize)
             }

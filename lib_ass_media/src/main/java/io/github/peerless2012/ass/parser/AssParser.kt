@@ -1,43 +1,34 @@
 package io.github.peerless2012.ass.parser
 
-import android.annotation.SuppressLint
 import android.util.Log
+import androidx.annotation.CallSuper
+import androidx.annotation.OptIn
 import androidx.media3.common.Format
 import androidx.media3.common.text.Cue
 import androidx.media3.common.util.Consumer
+import androidx.media3.common.util.UnstableApi
 import androidx.media3.extractor.text.CuesWithTiming
 import androidx.media3.extractor.text.SubtitleParser
 import io.github.peerless2012.ass.AssKeeper
 
-/**
- * @Author peerless2012
- * @Email peerless2012@126.com
- * @DateTime 2025/Jan/07 01:24
- * @Version V1.0
- * @Description
- */
-@SuppressLint("UnsafeOptInUsageError")
-class AssParser: SubtitleParser {
-
-    private val timestampPattern = "(\\d+:\\d{2}:\\d{2}):(\\d{2})".toRegex()
-
-    private val haveInitializationData: Boolean
-
-    private val assKeeper: AssKeeper
+@OptIn(UnstableApi::class)
+abstract class AssParser(
+    protected val assKeeper: AssKeeper,
+    initializationData: List<ByteArray>? = null,
+): SubtitleParser {
 
     private var videoSizeDirty = true
 
     private var surfaceSizeDirty = true
 
-    constructor(assKeeper: AssKeeper): this(assKeeper, null)
+    private var haveInitializationData = false
 
-    constructor(assKeeper: AssKeeper, initializationData: List<ByteArray>?) {
-        this.assKeeper = assKeeper
-        this.updateRenderSize()
-        this.assKeeper.onVideoSizeChanged {
+    init {
+        updateRenderSize()
+        assKeeper.onVideoSizeChanged {
             videoSizeDirty = true
         }
-        this.assKeeper.onSurfaceSizeChanged {
+        assKeeper.onSurfaceSizeChanged {
             surfaceSizeDirty = true
         }
         if (!initializationData.isNullOrEmpty()) {
@@ -49,8 +40,8 @@ class AssParser: SubtitleParser {
             val index = lines.indexOfFirst {
                 it.startsWith("[Events]")
             }
-            if (index >= 0 && lines[index+1].startsWith("Format:")) {
-                lines[index+1] = format
+            if (index >= 0 && lines[index + 1].startsWith("Format:")) {
+                lines[index + 1] = format
             }
             val result = lines.joinToString(separator = "\n")
             assKeeper.track.readBuffer(result.toByteArray())
@@ -81,6 +72,7 @@ class AssParser: SubtitleParser {
         }
     }
 
+    @CallSuper
     override fun parse(
         data: ByteArray,
         offset: Int,
@@ -89,45 +81,71 @@ class AssParser: SubtitleParser {
         output: Consumer<CuesWithTiming>
     ) {
         updateRenderSize()
-        // Note
-        // Exoplayer will trans time from hh:mm:ss.xxx to hh:mm:ss:xxx
-        // And lib ass only can parse hh:mm:ss.xxx
-        // So we have to replace the time
-//        val string = String(data, offset, length, Charsets.UTF_8)
-//        val newText = timestampPattern.replace(string) { matchResult ->
-//            val timePart = matchResult.groupValues[1]
-//            val frames = matchResult.groupValues[2]
-//            "$timePart.$frames"
-//        }
-//
-//        assKeeper.track.readBuffer(newText.toByteArray())
-//        val events = assKeeper.track.getEvents()
-//        val cues= mutableListOf<Cue>()
-//        events?.forEach {event ->
-//            Log.i("AssParser", "event : " + event)
-//            val texs = assKeeper.render.readFrames(event.start)
-//            texs?.forEach { tex ->
-////                Log.i("AssParser", "tex : x = " + tex.x + ", y = " + tex.y + ", width = " + tex.bitmap.width + ", height = " + tex.bitmap.height)
-//                val cue = Cue.Builder()
-//                    .setBitmap(tex.bitmap)
-//                    .setPosition(tex.x / assKeeper.surfaceSize.width.toFloat())
-//                    .setPositionAnchor(Cue.ANCHOR_TYPE_START)
-//                    .setLine(tex.y / assKeeper.surfaceSize.height.toFloat(), Cue.LINE_TYPE_FRACTION)
-//                    .setLineAnchor(Cue.ANCHOR_TYPE_START)
-//                    .setSize(tex.bitmap.width / assKeeper.surfaceSize.width.toFloat())
-//                    .setBitmapHeight(tex.bitmap.height / assKeeper.surfaceSize.height.toFloat())
-//                    .build()
-//                cues.add(cue)
-//            }
-//            if (cues.size > 0) {
-//                val cwt = CuesWithTiming(cues, event.start * 1000, event.duration * 1000)
-//                output.accept(cwt)
-//            }
-//        }
-//        assKeeper.track.clearEvent()
     }
 
     override fun getCueReplacementBehavior(): Int {
         return Format.CUE_REPLACEMENT_BEHAVIOR_REPLACE
     }
 }
+
+@OptIn(UnstableApi::class)
+class AssNativeParser(
+    assKeeper: AssKeeper,
+    initializationData: List<ByteArray>? = null,
+) : AssParser(assKeeper, initializationData) {
+
+    private val timestampPattern = "(\\d+:\\d{2}:\\d{2}):(\\d{2})".toRegex()
+
+    override fun parse(
+        data: ByteArray,
+        offset: Int,
+        length: Int,
+        outputOptions: SubtitleParser.OutputOptions,
+        output: Consumer<CuesWithTiming>
+    ) {
+        super.parse(data, offset, length, outputOptions, output)
+        // Note
+        // Exoplayer will trans time from hh:mm:ss.xxx to hh:mm:ss:xxx
+        // And lib ass only can parse hh:mm:ss.xxx
+        // So we have to replace the time
+        val string = String(data, offset, length, Charsets.UTF_8)
+        val newText = timestampPattern.replace(string) { matchResult ->
+            val timePart = matchResult.groupValues[1]
+            val frames = matchResult.groupValues[2]
+            "$timePart.$frames"
+        }
+
+        assKeeper.track.readBuffer(newText.toByteArray())
+        val events = assKeeper.track.getEvents()
+        val cues = mutableListOf<Cue>()
+        events?.forEach {event ->
+            Log.i("AssParser", "event : $event")
+            val texs = assKeeper.render.readFrames(event.start)
+            texs?.forEach { tex ->
+                Log.i("AssParser", "tex : x = " + tex.x + ", y = " + tex.y + ", width = " + tex.bitmap.width + ", height = " + tex.bitmap.height)
+                val cue = Cue.Builder()
+                    // TODO
+                    .setBitmap(tex.bitmap)
+                    .setPosition(tex.x / assKeeper.surfaceSize.width.toFloat())
+                    .setPositionAnchor(Cue.ANCHOR_TYPE_START)
+                    .setLine(tex.y / assKeeper.surfaceSize.height.toFloat(), Cue.LINE_TYPE_FRACTION)
+                    .setLineAnchor(Cue.ANCHOR_TYPE_START)
+                    .setSize(tex.bitmap.width / assKeeper.surfaceSize.width.toFloat())
+                    .setBitmapHeight(tex.bitmap.height / assKeeper.surfaceSize.height.toFloat())
+                    .build()
+                cues.add(cue)
+            }
+            if (cues.size > 0) {
+                val cwt = CuesWithTiming(cues, event.start * 1000, event.duration * 1000)
+                output.accept(cwt)
+            }
+        }
+        assKeeper.track.clearEvent()
+    }
+}
+
+@OptIn(UnstableApi::class)
+class AssEffectsParser(
+    assKeeper: AssKeeper,
+    initializationData: List<ByteArray>?
+) : AssParser(assKeeper, initializationData)

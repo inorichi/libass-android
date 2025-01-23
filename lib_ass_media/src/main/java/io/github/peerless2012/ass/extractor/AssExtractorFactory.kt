@@ -5,7 +5,7 @@ import androidx.media3.common.util.UnstableApi
 import androidx.media3.extractor.ExtractorsFactory
 import androidx.media3.extractor.mkv.MatroskaExtractor
 import io.github.peerless2012.ass.AssKeeper
-import io.github.peerless2012.ass.factory.AssSubtitleParserFactory
+import io.github.peerless2012.ass.parser.AssSubtitleParserFactory
 
 @OptIn(UnstableApi::class)
 fun ExtractorsFactory.withAssMkvSupport(
