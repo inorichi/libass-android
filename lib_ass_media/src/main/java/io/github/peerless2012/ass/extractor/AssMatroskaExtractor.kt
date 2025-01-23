@@ -76,7 +76,7 @@ class AssMatroskaExtractor(
                 if (attachmentMime in fontMimeTypes) {
                     val data = ByteArray(contentSize)
                     input.readFully(data, 0, contentSize)
-                    assHandler.ass.addFont(attachmentName, data)
+                    assHandler.addFont(attachmentName, data)
                 } else {
                     input.skipFully(contentSize)
                 }

@@ -21,7 +21,12 @@ class AssHandler(val useEffectsRenderer: Boolean) : Listener {
 
     private var player: ExoPlayer? = null
 
-    val ass by lazy { Ass() }
+    private var isInitialized = false
+
+    val ass by lazy {
+        isInitialized = true
+        Ass()
+    }
     val render by lazy {
         ass.createRender().also { render ->
             if (videoSize.isValid) {
@@ -118,6 +123,12 @@ class AssHandler(val useEffectsRenderer: Boolean) : Listener {
 
         availableTracks[format.id!!] = track
         return track
+    }
+
+    fun addFont(fontName: String, data: ByteArray) {
+        if (isInitialized) {
+            ass.addFont(fontName, data)
+        }
     }
 
     private fun getSelectedAssTrackId(tracks: Tracks): String? {
