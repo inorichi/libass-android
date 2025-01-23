@@ -55,9 +55,7 @@ class AssHandler(val useEffectsRenderer: Boolean) : Listener {
         val selectedAssTrackId = getSelectedAssTrackId(tracks)
         if (selectedAssTrackId == null) {
             track = null
-            if (useEffectsRenderer) {
-                player?.setVideoEffects(listOf())
-            }
+            setEffectsRenderer(false)
             return
         }
 
@@ -65,11 +63,7 @@ class AssHandler(val useEffectsRenderer: Boolean) : Listener {
         if (this.track == track) return
 
         render.setTrack(track)
-        if (useEffectsRenderer) {
-            player?.setVideoEffects(
-                listOf<Effect>(OverlayEffect(listOf(AssOverlay(render))))
-            )
-        }
+        setEffectsRenderer(true)
         this.track = track
     }
 
@@ -130,5 +124,16 @@ class AssHandler(val useEffectsRenderer: Boolean) : Listener {
 
         availableTracks[format.id!!] = track
         return track
+    }
+
+    private fun setEffectsRenderer(enabled: Boolean) {
+        if (!useEffectsRenderer) return
+
+        val effects = if (enabled) {
+            listOf<Effect>(OverlayEffect(listOf(AssOverlay(render))))
+        } else {
+            listOf()
+        }
+        player?.setVideoEffects(effects)
     }
 }
