@@ -6,7 +6,6 @@ import android.graphics.Paint
 import android.graphics.PorterDuff
 import android.graphics.PorterDuffXfermode
 import androidx.annotation.OptIn
-import androidx.media3.common.VideoSize
 import androidx.media3.common.util.Size
 import androidx.media3.common.util.UnstableApi
 import io.github.peerless2012.ass.kt.ASSRender
@@ -22,7 +21,6 @@ class AssOverlay(private val renderer: ASSRender) : CanvasOverlay(true) {
     override fun configure(videoSize: Size) {
         super.configure(videoSize)
         renderer.setFrameSize(videoSize.width, videoSize.height)
-        renderer.setStorageSize(videoSize.width, videoSize.height)
     }
 
     override fun onDraw(canvas: Canvas, presentationTimeUs: Long) {
