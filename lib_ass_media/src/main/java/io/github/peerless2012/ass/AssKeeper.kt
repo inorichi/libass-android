@@ -1,30 +1,33 @@
 package io.github.peerless2012.ass
 
 import android.util.Log
+import androidx.annotation.OptIn
+import androidx.media3.common.Effect
+import androidx.media3.common.Format
+import androidx.media3.common.MimeTypes.TEXT_SSA
 import androidx.media3.common.Player.Listener
+import androidx.media3.common.Tracks
 import androidx.media3.common.VideoSize
 import androidx.media3.common.util.Size
 import androidx.media3.common.util.UnstableApi
-import io.github.peerless2012.ass.kt.ASSRender
+import androidx.media3.effect.OverlayEffect
+import androidx.media3.exoplayer.ExoPlayer
+import io.github.peerless2012.ass.kt.ASSTrack
 import io.github.peerless2012.ass.kt.Ass
+import io.github.peerless2012.ass.render.AssOverlay
 
-/**
- * @Author peerless2012
- * @Email peerless2012@126.com
- * @DateTime 2025/Jan/17 08:20
- * @Version V1.0
- * @Description
- */
-@UnstableApi
+@OptIn(UnstableApi::class)
 class AssKeeper(val useEffectsRenderer: Boolean) : Listener {
 
-    val ass = Ass()
+    val ass by lazy { Ass() }
+    val render by lazy { ass.createRender() }
 
-    val track = ass.createTrack()
+    private var player: ExoPlayer? = null
 
-    val render: ASSRender = ass.createRender().also {
-        it.setTrack(track)
-    }
+    var track: ASSTrack? = null
+        private set
+
+    private val availableTracks = mutableMapOf<String, ASSTrack>()
 
     private var _videoSize = Size(0, 0)
 
@@ -39,6 +42,36 @@ class AssKeeper(val useEffectsRenderer: Boolean) : Listener {
 
     val surfaceSize: Size
         get() = _surfaceSize
+
+    fun initPlayer(player: ExoPlayer) {
+        player.addListener(this)
+        if (useEffectsRenderer) {
+            player.setVideoEffects(listOf())
+        }
+        this.player = player
+    }
+
+    override fun onTracksChanged(tracks: Tracks) {
+        val selectedAssTrackId = getSelectedAssTrackId(tracks)
+        if (selectedAssTrackId == null) {
+            track = null
+            if (useEffectsRenderer) {
+                player?.setVideoEffects(listOf())
+            }
+            return
+        }
+
+        val track = availableTracks[selectedAssTrackId] ?: return
+        if (this.track == track) return
+
+        render.setTrack(track)
+        if (useEffectsRenderer) {
+            player?.setVideoEffects(
+                listOf<Effect>(OverlayEffect(listOf(AssOverlay(render))))
+            )
+        }
+        this.track = track
+    }
 
     override fun onVideoSizeChanged(videoSize: VideoSize) {
         super.onVideoSizeChanged(videoSize)
@@ -64,4 +97,38 @@ class AssKeeper(val useEffectsRenderer: Boolean) : Listener {
         this.surfaceSizeCallback = callback
     }
 
+    private fun getSelectedAssTrackId(tracks: Tracks): String? {
+        return tracks.groups.find { group ->
+            if (group.isSelected) {
+                (0 until group.length).any { index ->
+                    val track = group.getTrackFormat(index)
+                    track.sampleMimeType == TEXT_SSA || track.codecs == TEXT_SSA
+                }
+            } else {
+                false
+            }
+        }?.getTrackFormat(0)?.id
+    }
+
+    fun createTrack(format: Format): ASSTrack {
+        val track = ass.createTrack()
+
+        val header1 = format.initializationData[0].decodeToString()
+        assert(header1.startsWith("Format:"))
+
+        val header2 = format.initializationData[1].decodeToString()
+
+        val lines = header2.lines().toMutableList()
+        val index = lines.indexOfFirst {
+            it.startsWith("[Events]")
+        }
+        if (index >= 0 && lines[index + 1].startsWith("Format:")) {
+            lines[index + 1] = header1
+        }
+        val result = lines.joinToString(separator = "\n")
+        track.readBuffer(result.toByteArray())
+
+        availableTracks[format.id!!] = track
+        return track
+    }
 }

@@ -66,7 +66,7 @@ class AssTrackOutput(
                 val start = timeUs.toAssTime()
                 val end = (timeUs + endUs).toAssTime()
                 val dialogue = "%s %s,%s,%s".format(lineType, start, end, remainder)
-                assKeeper.track.readBuffer(dialogue)
+                assKeeper.track?.readBuffer(dialogue)
             }
         }
         delegate.sampleMetadata(timeUs, flags, size, offset, cryptoData)

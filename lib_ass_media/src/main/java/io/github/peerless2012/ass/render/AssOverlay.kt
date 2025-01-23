@@ -9,16 +9,11 @@ import androidx.annotation.OptIn
 import androidx.media3.common.VideoSize
 import androidx.media3.common.util.Size
 import androidx.media3.common.util.UnstableApi
-import io.github.peerless2012.ass.AssKeeper
 import io.github.peerless2012.ass.kt.ASSRender
 
 
 @OptIn(UnstableApi::class)
-class AssOverlay(
-    private val assKeeper: AssKeeper
-) : CanvasOverlay(true) {
-
-    private var renderer: ASSRender? = null
+class AssOverlay(private val renderer: ASSRender) : CanvasOverlay(true) {
 
     private val paint = Paint().apply {
         xfermode = PorterDuffXfermode(PorterDuff.Mode.SRC_OVER)
@@ -26,15 +21,13 @@ class AssOverlay(
 
     override fun configure(videoSize: Size) {
         super.configure(videoSize)
-        assKeeper.onVideoSizeChanged(VideoSize(videoSize.width, videoSize.height))
-        assKeeper.onSurfaceSizeChanged(videoSize.width, videoSize.height)
-        renderer = assKeeper.render
+        renderer.setFrameSize(videoSize.width, videoSize.height)
+        renderer.setStorageSize(videoSize.width, videoSize.height)
     }
 
     override fun onDraw(canvas: Canvas, presentationTimeUs: Long) {
-        val renderer = requireNotNull(renderer)
         val result = renderer.renderFrame(presentationTimeUs / 1000)
-        if (result?.changed != 0) {
+        if (result == null || result.changed != 0) {
             canvas.drawColor(Color.TRANSPARENT, PorterDuff.Mode.CLEAR)
         }
         result?.images?.forEach { frame ->

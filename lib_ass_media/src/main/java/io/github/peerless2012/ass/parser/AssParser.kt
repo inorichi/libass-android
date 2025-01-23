@@ -10,18 +10,17 @@ import androidx.media3.common.util.UnstableApi
 import androidx.media3.extractor.text.CuesWithTiming
 import androidx.media3.extractor.text.SubtitleParser
 import io.github.peerless2012.ass.AssKeeper
+import io.github.peerless2012.ass.kt.ASSTrack
 
 @OptIn(UnstableApi::class)
 abstract class AssParser(
     protected val assKeeper: AssKeeper,
-    initializationData: List<ByteArray>? = null,
+    protected val track: ASSTrack,
 ): SubtitleParser {
 
     private var videoSizeDirty = true
 
     private var surfaceSizeDirty = true
-
-    private var haveInitializationData = false
 
     init {
         updateRenderSize()
@@ -30,23 +29,6 @@ abstract class AssParser(
         }
         assKeeper.onSurfaceSizeChanged {
             surfaceSizeDirty = true
-        }
-        if (!initializationData.isNullOrEmpty()) {
-            haveInitializationData = true
-            val format = String(initializationData[0], Charsets.UTF_8)
-            assert(format.startsWith("Format:"))
-            val header = String(initializationData[1], Charsets.UTF_8)
-            val lines = header.lines().toMutableList()
-            val index = lines.indexOfFirst {
-                it.startsWith("[Events]")
-            }
-            if (index >= 0 && lines[index + 1].startsWith("Format:")) {
-                lines[index + 1] = format
-            }
-            val result = lines.joinToString(separator = "\n")
-            assKeeper.track.readBuffer(result.toByteArray())
-        } else {
-            haveInitializationData = false
         }
     }
 
@@ -89,10 +71,7 @@ abstract class AssParser(
 }
 
 @OptIn(UnstableApi::class)
-class AssNativeParser(
-    assKeeper: AssKeeper,
-    initializationData: List<ByteArray>? = null,
-) : AssParser(assKeeper, initializationData) {
+class AssNativeParser(assKeeper: AssKeeper, track: ASSTrack) : AssParser(assKeeper, track) {
 
     private val timestampPattern = "(\\d+:\\d{2}:\\d{2}):(\\d{2})".toRegex()
 
@@ -115,10 +94,10 @@ class AssNativeParser(
             "$timePart.$frames"
         }
 
-        assKeeper.track.readBuffer(newText.toByteArray())
-        val events = assKeeper.track.getEvents()
+        track.readBuffer(newText.toByteArray())
+        val events = track.getEvents().orEmpty()
         val cues = mutableListOf<Cue>()
-        events?.forEach {event ->
+        events.forEach {event ->
             Log.i("AssParser", "event : $event")
             val texs = assKeeper.render.readFrames(event.start)
             texs?.forEach { tex ->
@@ -140,12 +119,9 @@ class AssNativeParser(
                 output.accept(cwt)
             }
         }
-        assKeeper.track.clearEvent()
+        track.clearEvent()
     }
 }
 
 @OptIn(UnstableApi::class)
-class AssEffectsParser(
-    assKeeper: AssKeeper,
-    initializationData: List<ByteArray>?
-) : AssParser(assKeeper, initializationData)
+class AssEffectsParser(assKeeper: AssKeeper, track: ASSTrack) : AssParser(assKeeper, track)

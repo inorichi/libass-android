@@ -34,34 +34,6 @@ fun ExoPlayer.Builder.buildWithAssSupport(
         .setMediaSourceFactory(mediaSourceFactory)
         .build()
 
-    player.addListener(assKeeper)
-    if (useEffectsRenderer) {
-        // Video effects need to be called before prepare at least once
-        player.setVideoEffects(listOf())
-
-        player.addListener(object : Player.Listener {
-            override fun onTracksChanged(tracks: Tracks) {
-                super.onTracksChanged(tracks)
-                // Check if there are any active SSA subtitle tracks
-                val hasAss = tracks.groups.any { group ->
-                    if (group.isSelected) {
-                        (0 until group.length).any { index ->
-                            val track = group.getTrackFormat(index)
-                            track.sampleMimeType == MimeTypes.TEXT_SSA || track.codecs == MimeTypes.TEXT_SSA
-                        }
-                    } else {
-                        false
-                    }
-                }
-                if (hasAss) {
-                    player.setVideoEffects(
-                        listOf<Effect>(OverlayEffect(listOf(AssOverlay(assKeeper))))
-                    )
-                } else {
-                    player.setVideoEffects(listOf())
-                }
-            }
-        })
-    }
+    assKeeper.initPlayer(player)
     return player
 }

@@ -54,7 +54,10 @@ class MainActivity : AppCompatActivity() {
 
     @OptIn(UnstableApi::class)
     private fun selectTrack() {
-        TrackSelectionDialogBuilder(this, "aa", player, androidx.media3.common.C.TRACK_TYPE_TEXT).build().show()
+        TrackSelectionDialogBuilder(this, "aa", player, androidx.media3.common.C.TRACK_TYPE_TEXT)
+            .setShowDisableOption(true)
+            .build()
+            .show()
     }
 
     override fun onDestroy() {
