@@ -55,6 +55,12 @@ class AssMatroskaExtractor(
 
     override fun endMasterElement(id: Int) {
         when (id) {
+            ID_VIDEO -> {
+                // We need to get the video dimensions very early
+                val track = getCurrentTrack(id)
+                assHandler.setVideoSize(track.width, track.height)
+                super.endMasterElement(id)
+            }
             ID_ATTACHED_FILE -> clearAttachment()
             else -> super.endMasterElement(id)
         }
@@ -92,6 +98,7 @@ class AssMatroskaExtractor(
 
     companion object {
         const val ID_EBML = 0x1A45DFA3
+        const val ID_VIDEO = 0xE0
         const val ID_ATTACHMENTS = 0x1941A469
         const val ID_ATTACHED_FILE = 0x61A7
         const val ID_FILE_NAME = 0x466E

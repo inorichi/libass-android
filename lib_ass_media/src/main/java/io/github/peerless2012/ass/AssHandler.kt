@@ -7,7 +7,6 @@ import androidx.media3.common.Format
 import androidx.media3.common.MimeTypes.TEXT_SSA
 import androidx.media3.common.Player.Listener
 import androidx.media3.common.Tracks
-import androidx.media3.common.VideoSize
 import androidx.media3.common.util.Size
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.effect.OverlayEffect
@@ -41,13 +40,10 @@ class AssHandler(val useEffectsRenderer: Boolean) : Listener {
 
     private val availableTracks = mutableMapOf<String, ASSTrack>()
 
-    var videoSize = Size(0, 0)
-        private set
+    private var videoSize = Size(0, 0)
 
     var surfaceSize = Size(0, 0)
         private set
-
-    private var videoSizeCallback: ((Size) -> Unit)? = null
 
     private var surfaceSizeCallback: ((Size) -> Unit)? = null
 
@@ -74,24 +70,12 @@ class AssHandler(val useEffectsRenderer: Boolean) : Listener {
         this.track = track
     }
 
-    override fun onVideoSizeChanged(videoSize: VideoSize) {
-        super.onVideoSizeChanged(videoSize)
-        Log.i("AssKeeper", "onVideoSizeChanged: width = ${videoSize.width}, height = ${videoSize.height}")
-        if (this.videoSize.width == videoSize.width && this.videoSize.height == videoSize.height) return
-        this.videoSize = Size(videoSize.width, videoSize.height)
-        videoSizeCallback?.invoke(this.videoSize)
-    }
-
     override fun onSurfaceSizeChanged(width: Int, height: Int) {
         super.onSurfaceSizeChanged(width, height)
         Log.i("AssKeeper", "onSurfaceSizeChanged: width = $width, height = $height")
         if (surfaceSize.width == width && surfaceSize.height == height) return
         surfaceSize = Size(width, height)
         surfaceSizeCallback?.invoke(surfaceSize)
-    }
-
-    fun onVideoSizeChanged(callback: (Size) -> Unit) {
-        this.videoSizeCallback = callback
     }
 
     fun onSurfaceSizeChanged(callback: (Size) -> Unit) {
@@ -127,6 +111,10 @@ class AssHandler(val useEffectsRenderer: Boolean) : Listener {
         if (Ass.isInitialized) {
             ass.addFont(fontName, data)
         }
+    }
+
+    fun setVideoSize(width: Int, height: Int) {
+        videoSize = Size(width, height)
     }
 
     private fun getSelectedAssTrackId(tracks: Tracks): String? {

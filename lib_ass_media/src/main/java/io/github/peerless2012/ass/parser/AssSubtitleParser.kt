@@ -17,34 +17,21 @@ class AssSubtitleParser(
     private val track: ASSTrack,
 ): SubtitleParser {
 
-    private var videoSizeDirty = true
-
     private var surfaceSizeDirty = true
 
     private val timestampPattern = "(\\d+:\\d{2}:\\d{2}):(\\d{2})".toRegex()
 
     init {
         updateRenderSize()
-        assHandler.onVideoSizeChanged {
-            videoSizeDirty = true
-        }
         assHandler.onSurfaceSizeChanged {
             surfaceSizeDirty = true
         }
     }
 
     /**
-     * Update storage and frame size
+     * Update frame size
      */
     private fun updateRenderSize() {
-        if (videoSizeDirty) {
-            val videoSize = this.assHandler.videoSize
-            if (videoSize.width > 0 && videoSize.height > 0) {
-                Log.i("AssParser", "video size = $videoSize")
-                assHandler.render.setStorageSize(videoSize.width, videoSize.height)
-            }
-            videoSizeDirty = false
-        }
         if (surfaceSizeDirty) {
             val surfaceSize = assHandler.surfaceSize
             if (surfaceSize.width > 0 && surfaceSize.height > 0) {
