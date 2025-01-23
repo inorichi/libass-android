@@ -1,7 +1,6 @@
 package io.github.peerless2012.ass.parser
 
 import android.util.Log
-import androidx.annotation.CallSuper
 import androidx.annotation.OptIn
 import androidx.media3.common.Format
 import androidx.media3.common.text.Cue
@@ -13,14 +12,16 @@ import io.github.peerless2012.ass.AssHandler
 import io.github.peerless2012.ass.kt.ASSTrack
 
 @OptIn(UnstableApi::class)
-abstract class AssSubtitleParser(
-    protected val assHandler: AssHandler,
-    protected val track: ASSTrack,
+class AssSubtitleParser(
+    private val assHandler: AssHandler,
+    private val track: ASSTrack,
 ): SubtitleParser {
 
     private var videoSizeDirty = true
 
     private var surfaceSizeDirty = true
+
+    private val timestampPattern = "(\\d+:\\d{2}:\\d{2}):(\\d{2})".toRegex()
 
     init {
         updateRenderSize()
@@ -54,7 +55,6 @@ abstract class AssSubtitleParser(
         }
     }
 
-    @CallSuper
     override fun parse(
         data: ByteArray,
         offset: Int,
@@ -63,26 +63,7 @@ abstract class AssSubtitleParser(
         output: Consumer<CuesWithTiming>
     ) {
         updateRenderSize()
-    }
 
-    override fun getCueReplacementBehavior(): Int {
-        return Format.CUE_REPLACEMENT_BEHAVIOR_REPLACE
-    }
-}
-
-@OptIn(UnstableApi::class)
-class AssNativeParser(assHandler: AssHandler, track: ASSTrack) : AssSubtitleParser(assHandler, track) {
-
-    private val timestampPattern = "(\\d+:\\d{2}:\\d{2}):(\\d{2})".toRegex()
-
-    override fun parse(
-        data: ByteArray,
-        offset: Int,
-        length: Int,
-        outputOptions: SubtitleParser.OutputOptions,
-        output: Consumer<CuesWithTiming>
-    ) {
-        super.parse(data, offset, length, outputOptions, output)
         // Note
         // Exoplayer will trans time from hh:mm:ss.xxx to hh:mm:ss:xxx
         // And lib ass only can parse hh:mm:ss.xxx
@@ -120,7 +101,8 @@ class AssNativeParser(assHandler: AssHandler, track: ASSTrack) : AssSubtitlePars
         }
         track.clearEvent()
     }
-}
 
-@OptIn(UnstableApi::class)
-class AssEffectsParser(assHandler: AssHandler, track: ASSTrack) : AssSubtitleParser(assHandler, track)
+    override fun getCueReplacementBehavior(): Int {
+        return Format.CUE_REPLACEMENT_BEHAVIOR_REPLACE
+    }
+}

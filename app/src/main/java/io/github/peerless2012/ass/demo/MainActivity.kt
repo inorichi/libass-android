@@ -49,7 +49,6 @@ class MainActivity : AppCompatActivity() {
         playerView.player = player
         player.setMediaItem(MediaItem.fromUri(url))
         player.prepare()
-
     }
 
     @OptIn(UnstableApi::class)

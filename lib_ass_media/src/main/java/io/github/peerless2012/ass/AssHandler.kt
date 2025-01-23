@@ -19,36 +19,40 @@ import io.github.peerless2012.ass.render.AssOverlay
 @OptIn(UnstableApi::class)
 class AssHandler(val useEffectsRenderer: Boolean) : Listener {
 
-    val ass by lazy { Ass() }
-    val render by lazy { ass.createRender() }
-
     private var player: ExoPlayer? = null
+
+    val ass by lazy { Ass() }
+    val render by lazy {
+        ass.createRender().also { render ->
+            if (videoSize.isValid) {
+                render.setFrameSize(videoSize.width, videoSize.height)
+            }
+            if (surfaceSize.isValid) {
+                render.setStorageSize(surfaceSize.width, surfaceSize.height)
+            }
+        }
+    }
 
     var track: ASSTrack? = null
         private set
 
     private val availableTracks = mutableMapOf<String, ASSTrack>()
 
-    private var _videoSize = Size(0, 0)
+    var videoSize = Size(0, 0)
+        private set
 
-    private var _surfaceSize = Size(0, 0)
+    var surfaceSize = Size(0, 0)
+        private set
 
     private var videoSizeCallback: ((Size) -> Unit)? = null
 
     private var surfaceSizeCallback: ((Size) -> Unit)? = null
 
-    val videoSize: Size
-        get() = _videoSize
-
-    val surfaceSize: Size
-        get() = _surfaceSize
-
     fun initPlayer(player: ExoPlayer) {
         player.addListener(this)
-        if (useEffectsRenderer) {
-            player.setVideoEffects(listOf())
-        }
         this.player = player
+        // We need to call this method to initialize the effects API as stated in Exoplayer's doc.
+        setEffectsRenderer(false)
     }
 
     override fun onTracksChanged(tracks: Tracks) {
@@ -70,41 +74,31 @@ class AssHandler(val useEffectsRenderer: Boolean) : Listener {
     override fun onVideoSizeChanged(videoSize: VideoSize) {
         super.onVideoSizeChanged(videoSize)
         Log.i("AssKeeper", "onVideoSizeChanged: width = ${videoSize.width}, height = ${videoSize.height}")
-        if (_videoSize.width == videoSize.width && _videoSize.height == videoSize.height) return
-        _videoSize = Size(videoSize.width, videoSize.height)
-        videoSizeCallback?.invoke(_videoSize)
+        if (videoSize.width == videoSize.width && videoSize.height == videoSize.height) return
+        this.videoSize = Size(videoSize.width, videoSize.height)
+        videoSizeCallback?.invoke(this.videoSize)
     }
 
     override fun onSurfaceSizeChanged(width: Int, height: Int) {
         super.onSurfaceSizeChanged(width, height)
         Log.i("AssKeeper", "onSurfaceSizeChanged: width = $width, height = $height")
-        if (_surfaceSize.width == width && _surfaceSize.height == height) return
-        _surfaceSize = Size(width, height)
-        surfaceSizeCallback?.invoke(_surfaceSize)
+        if (surfaceSize.width == width && surfaceSize.height == height) return
+        surfaceSize = Size(width, height)
+        surfaceSizeCallback?.invoke(surfaceSize)
     }
 
-    public fun onVideoSizeChanged(callback: (Size) -> Unit) {
+    fun onVideoSizeChanged(callback: (Size) -> Unit) {
         this.videoSizeCallback = callback
     }
 
-    public fun onSurfaceSizeChanged(callback: (Size) -> Unit) {
+    fun onSurfaceSizeChanged(callback: (Size) -> Unit) {
         this.surfaceSizeCallback = callback
     }
 
-    private fun getSelectedAssTrackId(tracks: Tracks): String? {
-        return tracks.groups.find { group ->
-            if (group.isSelected) {
-                (0 until group.length).any { index ->
-                    val track = group.getTrackFormat(index)
-                    track.sampleMimeType == TEXT_SSA || track.codecs == TEXT_SSA
-                }
-            } else {
-                false
-            }
-        }?.getTrackFormat(0)?.id
-    }
-
     fun createTrack(format: Format): ASSTrack {
+        // We need to create the renderer before the tracks
+        render
+
         val track = ass.createTrack()
 
         val header1 = format.initializationData[0].decodeToString()
@@ -126,6 +120,19 @@ class AssHandler(val useEffectsRenderer: Boolean) : Listener {
         return track
     }
 
+    private fun getSelectedAssTrackId(tracks: Tracks): String? {
+        return tracks.groups.find { group ->
+            if (group.isSelected) {
+                (0 until group.length).any { index ->
+                    val track = group.getTrackFormat(index)
+                    track.sampleMimeType == TEXT_SSA || track.codecs == TEXT_SSA
+                }
+            } else {
+                false
+            }
+        }?.getTrackFormat(0)?.id
+    }
+
     private fun setEffectsRenderer(enabled: Boolean) {
         if (!useEffectsRenderer) return
 
@@ -136,4 +143,7 @@ class AssHandler(val useEffectsRenderer: Boolean) : Listener {
         }
         player?.setVideoEffects(effects)
     }
+
+    private val Size.isValid
+        get() = width > 0 && height > 0
 }
