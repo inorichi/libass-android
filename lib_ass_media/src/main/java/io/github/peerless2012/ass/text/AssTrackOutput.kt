@@ -8,13 +8,13 @@ import androidx.media3.common.util.ParsableByteArray
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.common.util.Util
 import androidx.media3.extractor.TrackOutput
-import io.github.peerless2012.ass.AssKeeper
+import io.github.peerless2012.ass.AssHandler
 import java.util.regex.Pattern
 
 @UnstableApi
 class AssTrackOutput(
     private val delegate: TrackOutput,
-    private val assKeeper: AssKeeper,
+    private val assHandler: AssHandler,
 ) : TrackOutput {
 
     private var isAss = false
@@ -66,7 +66,7 @@ class AssTrackOutput(
                 val start = timeUs.toAssTime()
                 val end = (timeUs + endUs).toAssTime()
                 val dialogue = "%s %s,%s,%s".format(lineType, start, end, remainder)
-                assKeeper.track?.readBuffer(dialogue)
+                assHandler.track?.readBuffer(dialogue)
             }
         }
         delegate.sampleMetadata(timeUs, flags, size, offset, cryptoData)

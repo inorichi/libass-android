@@ -4,18 +4,18 @@ import androidx.media3.common.C
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.extractor.ExtractorOutput
 import androidx.media3.extractor.TrackOutput
-import io.github.peerless2012.ass.AssKeeper
+import io.github.peerless2012.ass.AssHandler
 
 @UnstableApi
 class AssSubtitleExtractorOutput(
     private val delegate: ExtractorOutput,
-    private val assKeeper: AssKeeper,
+    private val assHandler: AssHandler,
 ): ExtractorOutput by delegate {
     override fun track(id: Int, type: Int): TrackOutput {
         return if (type == C.TRACK_TYPE_TEXT) {
             // We can't know at this time if the subtitle track is ASS or other format, so we wrap
             // every subtitle track
-            AssTrackOutput(delegate.track(id, type), assKeeper)
+            AssTrackOutput(delegate.track(id, type), assHandler)
         } else {
             delegate.track(id, type)
         }

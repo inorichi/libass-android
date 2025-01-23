@@ -17,7 +17,7 @@ import io.github.peerless2012.ass.kt.Ass
 import io.github.peerless2012.ass.render.AssOverlay
 
 @OptIn(UnstableApi::class)
-class AssKeeper(val useEffectsRenderer: Boolean) : Listener {
+class AssHandler(val useEffectsRenderer: Boolean) : Listener {
 
     val ass by lazy { Ass() }
     val render by lazy { ass.createRender() }

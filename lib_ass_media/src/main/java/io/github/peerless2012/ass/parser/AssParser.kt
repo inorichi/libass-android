@@ -9,12 +9,12 @@ import androidx.media3.common.util.Consumer
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.extractor.text.CuesWithTiming
 import androidx.media3.extractor.text.SubtitleParser
-import io.github.peerless2012.ass.AssKeeper
+import io.github.peerless2012.ass.AssHandler
 import io.github.peerless2012.ass.kt.ASSTrack
 
 @OptIn(UnstableApi::class)
 abstract class AssParser(
-    protected val assKeeper: AssKeeper,
+    protected val assHandler: AssHandler,
     protected val track: ASSTrack,
 ): SubtitleParser {
 
@@ -24,10 +24,10 @@ abstract class AssParser(
 
     init {
         updateRenderSize()
-        assKeeper.onVideoSizeChanged {
+        assHandler.onVideoSizeChanged {
             videoSizeDirty = true
         }
-        assKeeper.onSurfaceSizeChanged {
+        assHandler.onSurfaceSizeChanged {
             surfaceSizeDirty = true
         }
     }
@@ -37,18 +37,18 @@ abstract class AssParser(
      */
     private fun updateRenderSize() {
         if (videoSizeDirty) {
-            val videoSize = this.assKeeper.videoSize
+            val videoSize = this.assHandler.videoSize
             if (videoSize.width > 0 && videoSize.height > 0) {
                 Log.i("AssParser", "video size = $videoSize")
-                assKeeper.render.setStorageSize(videoSize.width, videoSize.height)
+                assHandler.render.setStorageSize(videoSize.width, videoSize.height)
             }
             videoSizeDirty = false
         }
         if (surfaceSizeDirty) {
-            val surfaceSize = assKeeper.surfaceSize
+            val surfaceSize = assHandler.surfaceSize
             if (surfaceSize.width > 0 && surfaceSize.height > 0) {
                 Log.i("AssParser", "surface size = $surfaceSize")
-                assKeeper.render.setFrameSize(surfaceSize.width, surfaceSize.height)
+                assHandler.render.setFrameSize(surfaceSize.width, surfaceSize.height)
             }
             surfaceSizeDirty = false
         }
@@ -71,7 +71,7 @@ abstract class AssParser(
 }
 
 @OptIn(UnstableApi::class)
-class AssNativeParser(assKeeper: AssKeeper, track: ASSTrack) : AssParser(assKeeper, track) {
+class AssNativeParser(assHandler: AssHandler, track: ASSTrack) : AssParser(assHandler, track) {
 
     private val timestampPattern = "(\\d+:\\d{2}:\\d{2}):(\\d{2})".toRegex()
 
@@ -99,18 +99,17 @@ class AssNativeParser(assKeeper: AssKeeper, track: ASSTrack) : AssParser(assKeep
         val cues = mutableListOf<Cue>()
         events.forEach {event ->
             Log.i("AssParser", "event : $event")
-            val texs = assKeeper.render.readFrames(event.start)
+            val texs = assHandler.render.readFrames(event.start)
             texs?.forEach { tex ->
                 Log.i("AssParser", "tex : x = " + tex.x + ", y = " + tex.y + ", width = " + tex.bitmap.width + ", height = " + tex.bitmap.height)
                 val cue = Cue.Builder()
-                    // TODO
                     .setBitmap(tex.bitmap)
-                    .setPosition(tex.x / assKeeper.surfaceSize.width.toFloat())
+                    .setPosition(tex.x / assHandler.surfaceSize.width.toFloat())
                     .setPositionAnchor(Cue.ANCHOR_TYPE_START)
-                    .setLine(tex.y / assKeeper.surfaceSize.height.toFloat(), Cue.LINE_TYPE_FRACTION)
+                    .setLine(tex.y / assHandler.surfaceSize.height.toFloat(), Cue.LINE_TYPE_FRACTION)
                     .setLineAnchor(Cue.ANCHOR_TYPE_START)
-                    .setSize(tex.bitmap.width / assKeeper.surfaceSize.width.toFloat())
-                    .setBitmapHeight(tex.bitmap.height / assKeeper.surfaceSize.height.toFloat())
+                    .setSize(tex.bitmap.width / assHandler.surfaceSize.width.toFloat())
+                    .setBitmapHeight(tex.bitmap.height / assHandler.surfaceSize.height.toFloat())
                     .build()
                 cues.add(cue)
             }
@@ -124,4 +123,4 @@ class AssNativeParser(assKeeper: AssKeeper, track: ASSTrack) : AssParser(assKeep
 }
 
 @OptIn(UnstableApi::class)
-class AssEffectsParser(assKeeper: AssKeeper, track: ASSTrack) : AssParser(assKeeper, track)
+class AssEffectsParser(assHandler: AssHandler, track: ASSTrack) : AssParser(assHandler, track)

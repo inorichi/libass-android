@@ -5,7 +5,7 @@ import androidx.media3.common.MimeTypes
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.extractor.text.DefaultSubtitleParserFactory
 import androidx.media3.extractor.text.SubtitleParser
-import io.github.peerless2012.ass.AssKeeper
+import io.github.peerless2012.ass.AssHandler
 
 /**
  * @Author peerless2012
@@ -15,7 +15,7 @@ import io.github.peerless2012.ass.AssKeeper
  * @Description
  */
 @UnstableApi
-class AssSubtitleParserFactory(private val assKeeper: AssKeeper): SubtitleParser.Factory {
+class AssSubtitleParserFactory(private val assHandler: AssHandler): SubtitleParser.Factory {
 
     private val defaultSubtitleParserFactory = DefaultSubtitleParserFactory()
 
@@ -29,11 +29,11 @@ class AssSubtitleParserFactory(private val assKeeper: AssKeeper): SubtitleParser
 
     override fun create(format: Format): SubtitleParser {
         return if (format.sampleMimeType == MimeTypes.TEXT_SSA) {
-            val track = assKeeper.createTrack(format)
-            if (assKeeper.useEffectsRenderer) {
-                AssEffectsParser(assKeeper, track)
+            val track = assHandler.createTrack(format)
+            if (assHandler.useEffectsRenderer) {
+                AssEffectsParser(assHandler, track)
             } else {
-                AssNativeParser(assKeeper, track)
+                AssNativeParser(assHandler, track)
             }
         } else {
             defaultSubtitleParserFactory.create(format)
