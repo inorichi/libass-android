@@ -21,12 +21,10 @@ class AssHandler(val useEffectsRenderer: Boolean) : Listener {
 
     private var player: ExoPlayer? = null
 
-    private var isInitialized = false
-
     val ass by lazy {
-        isInitialized = true
-        Ass()
+        Ass.newInstance()
     }
+
     val render by lazy {
         ass.createRender().also { render ->
             if (videoSize.isValid) {
@@ -126,7 +124,7 @@ class AssHandler(val useEffectsRenderer: Boolean) : Listener {
     }
 
     fun addFont(fontName: String, data: ByteArray) {
-        if (isInitialized) {
+        if (Ass.isInitialized) {
             ass.addFont(fontName, data)
         }
     }
