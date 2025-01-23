@@ -13,7 +13,7 @@ import io.github.peerless2012.ass.AssHandler
 import io.github.peerless2012.ass.kt.ASSTrack
 
 @OptIn(UnstableApi::class)
-abstract class AssParser(
+abstract class AssSubtitleParser(
     protected val assHandler: AssHandler,
     protected val track: ASSTrack,
 ): SubtitleParser {
@@ -71,7 +71,7 @@ abstract class AssParser(
 }
 
 @OptIn(UnstableApi::class)
-class AssNativeParser(assHandler: AssHandler, track: ASSTrack) : AssParser(assHandler, track) {
+class AssNativeParser(assHandler: AssHandler, track: ASSTrack) : AssSubtitleParser(assHandler, track) {
 
     private val timestampPattern = "(\\d+:\\d{2}:\\d{2}):(\\d{2})".toRegex()
 
@@ -123,4 +123,4 @@ class AssNativeParser(assHandler: AssHandler, track: ASSTrack) : AssParser(assHa
 }
 
 @OptIn(UnstableApi::class)
-class AssEffectsParser(assHandler: AssHandler, track: ASSTrack) : AssParser(assHandler, track)
+class AssEffectsParser(assHandler: AssHandler, track: ASSTrack) : AssSubtitleParser(assHandler, track)
