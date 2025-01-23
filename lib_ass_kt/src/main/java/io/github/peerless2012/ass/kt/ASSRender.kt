@@ -1,8 +1,5 @@
 package io.github.peerless2012.ass.kt
 
-import android.graphics.Bitmap
-import java.nio.ByteBuffer
-
 /**
  * @Author peerless2012
  * @Email peerless2012@126.com
@@ -57,11 +54,11 @@ class ASSRender(nativeAss: Long) {
     }
 
     public fun readFrames(time: Long): Array<ASSTex>? {
-        return nativeAssRenderReadFrames(nativeRender, track!!.nativeAssTrack, time)
+        return track?.let { nativeAssRenderReadFrames(nativeRender, it.nativeAssTrack, time) }
     }
 
     public fun renderFrame(time: Long): ASSRenderResult? {
-        return nativeAssRenderFrame(nativeRender, track!!.nativeAssTrack, time)
+        return track?.let { nativeAssRenderFrame(nativeRender, it.nativeAssTrack, time) }
     }
 
     protected fun finalize() {
