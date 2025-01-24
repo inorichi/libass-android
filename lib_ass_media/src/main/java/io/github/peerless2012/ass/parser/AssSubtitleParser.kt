@@ -36,7 +36,7 @@ class AssSubtitleParser(
             val surfaceSize = assHandler.surfaceSize
             if (surfaceSize.width > 0 && surfaceSize.height > 0) {
                 Log.i("AssParser", "surface size = $surfaceSize")
-                assHandler.render.setFrameSize(surfaceSize.width, surfaceSize.height)
+                assHandler.render?.setFrameSize(surfaceSize.width, surfaceSize.height)
             }
             surfaceSizeDirty = false
         }
@@ -67,7 +67,7 @@ class AssSubtitleParser(
         val cues = mutableListOf<Cue>()
         events.forEach {event ->
             Log.i("AssParser", "event : $event")
-            val texs = assHandler.render.readFrames(event.start)
+            val texs = assHandler.render?.readFrames(event.start)
             texs?.forEach { tex ->
                 Log.i("AssParser", "tex : x = " + tex.x + ", y = " + tex.y + ", width = " + tex.bitmap.width + ", height = " + tex.bitmap.height)
                 val cue = Cue.Builder()
