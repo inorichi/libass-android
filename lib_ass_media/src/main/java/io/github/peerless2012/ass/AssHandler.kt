@@ -95,12 +95,6 @@ class AssHandler(val useEffectsRenderer: Boolean) : Listener {
         return track
     }
 
-    fun addFont(fontName: String, data: ByteArray) {
-        if (Ass.isInitialized) {
-            ass.addFont(fontName, data)
-        }
-    }
-
     fun setVideoSize(width: Int, height: Int) {
         videoSize = Size(width, height)
     }

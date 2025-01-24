@@ -8,6 +8,7 @@ import androidx.media3.extractor.mkv.EbmlProcessor
 import androidx.media3.extractor.mkv.MatroskaExtractor
 import androidx.media3.extractor.text.SubtitleParser
 import io.github.peerless2012.ass.AssHandler
+import io.github.peerless2012.ass.kt.Ass
 import io.github.peerless2012.ass.text.AssSubtitleExtractorOutput
 
 @OptIn(UnstableApi::class)
@@ -79,10 +80,12 @@ class AssMatroskaExtractor(
             ID_FILE_DATA -> {
                 val attachmentName = requireNotNull(currentAttachmentName)
                 val attachmentMime = requireNotNull(currentAttachmentMime)
-                if (attachmentMime in fontMimeTypes) {
+
+                // Only add fonts if an ASS track was detected to support lazy initialization
+                if (Ass.isInitialized && attachmentMime in fontMimeTypes) {
                     val data = ByteArray(contentSize)
                     input.readFully(data, 0, contentSize)
-                    assHandler.addFont(attachmentName, data)
+                    assHandler.ass.addFont(attachmentName, data)
                 } else {
                     input.skipFully(contentSize)
                 }
