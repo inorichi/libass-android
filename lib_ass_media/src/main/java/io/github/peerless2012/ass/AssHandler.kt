@@ -13,6 +13,7 @@ import androidx.media3.effect.OverlayEffect
 import androidx.media3.exoplayer.ExoPlayer
 import io.github.peerless2012.ass.kt.ASSTrack
 import io.github.peerless2012.ass.kt.Ass
+import io.github.peerless2012.ass.parser.AssHeaderParser
 import io.github.peerless2012.ass.render.AssOverlay
 
 @OptIn(UnstableApi::class)
@@ -87,22 +88,8 @@ class AssHandler(val useEffectsRenderer: Boolean) : Listener {
         render
 
         val track = ass.createTrack()
-
-        val header1 = format.initializationData[0].decodeToString()
-        assert(header1.startsWith("Format:"))
-
-        val header2 = format.initializationData[1].decodeToString()
-
-        val lines = header2.lines().toMutableList()
-        val index = lines.indexOfFirst {
-            it.startsWith("[Events]")
-        }
-        if (index >= 0 && lines[index + 1].startsWith("Format:")) {
-            lines[index + 1] = header1
-        }
-        val result = lines.joinToString(separator = "\n")
-        track.readBuffer(result.toByteArray())
-
+        val header = AssHeaderParser.parse(format)
+        track.readBuffer(header)
         availableTracks[format.id!!] = track
         return track
     }
