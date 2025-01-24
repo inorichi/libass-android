@@ -7,7 +7,8 @@ import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.extractor.DefaultExtractorsFactory
 import androidx.media3.extractor.ExtractorsFactory
-import io.github.peerless2012.ass.extractor.withAssMkvSupport
+import androidx.media3.extractor.mkv.MatroskaExtractor
+import io.github.peerless2012.ass.extractor.AssMatroskaExtractor
 import io.github.peerless2012.ass.parser.AssSubtitleParserFactory
 
 @OptIn(UnstableApi::class)
@@ -30,4 +31,17 @@ fun ExoPlayer.Builder.buildWithAssSupport(
 
     assHandler.initPlayer(player)
     return player
+}
+
+@OptIn(UnstableApi::class)
+fun ExtractorsFactory.withAssMkvSupport(
+    assSubtitleParserFactory: AssSubtitleParserFactory,
+    assHandler: AssHandler
+): ExtractorsFactory {
+    return ExtractorsFactory {
+        createExtractors()
+            .filter { it !is MatroskaExtractor }
+            .plus(AssMatroskaExtractor(assSubtitleParserFactory, assHandler))
+            .toTypedArray()
+    }
 }
