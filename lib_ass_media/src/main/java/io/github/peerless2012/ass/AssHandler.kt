@@ -59,6 +59,7 @@ class AssHandler(val useEffectsRenderer: Boolean) : Listener {
         val selectedAssTrackId = getSelectedAssTrackId(tracks)
         if (selectedAssTrackId == null) {
             track = null
+            render.setTrack(null)
             setEffectsRenderer(false)
             return
         }

@@ -37,7 +37,7 @@ class ASSRender(nativeAss: Long) {
 
     private var track: ASSTrack? = null
 
-    public fun setTrack(track: ASSTrack) {
+    public fun setTrack(track: ASSTrack?) {
         this.track = track
     }
 
